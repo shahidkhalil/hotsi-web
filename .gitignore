@@ -1,0 +1,9 @@
+# Local / non-website files
+*.pdf
+test.txt
+.claude/
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+*.log

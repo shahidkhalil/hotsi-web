@@ -100,9 +100,14 @@ section{overflow:hidden;}
 /* CATEGORIES */
 #categories{padding:100px 0;background:var(--bg);}
 .cat-head{text-align:center;margin-bottom:60px;}
-.cat-grid{display:flex;gap:20px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;}
-.cat-grid::-webkit-scrollbar{display:none;}
-.cat-card{flex:0 0 auto;width:180px;height:220px;border-radius:var(--radius);background:var(--white);border:1.5px solid rgba(17,17,17,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:all .4s cubic-bezier(.34,1.56,.64,1);}
+.cat-grid{display:flex;flex-wrap:nowrap;gap:16px;overflow-x:auto;padding-bottom:14px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;cursor:grab;scrollbar-width:thin;scrollbar-color:rgba(255,107,53,.5) rgba(17,17,17,.06);}
+.cat-grid.dragging{cursor:grabbing;scroll-snap-type:none;}
+.cat-grid.dragging .cat-card{pointer-events:none;}
+.cat-grid::-webkit-scrollbar{height:8px;}
+.cat-grid::-webkit-scrollbar-track{background:rgba(17,17,17,.06);border-radius:99px;}
+.cat-grid::-webkit-scrollbar-thumb{background:rgba(255,107,53,.5);border-radius:99px;}
+.cat-grid::-webkit-scrollbar-thumb:hover{background:var(--primary);}
+.cat-card{flex:0 0 auto;width:164px;height:200px;scroll-snap-align:start;border-radius:var(--radius);background:var(--white);border:1.5px solid rgba(17,17,17,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:all .4s cubic-bezier(.34,1.56,.64,1);}
 .cat-card:hover{transform:translateY(-8px) scale(1.02);border-color:rgba(255,107,53,.3);box-shadow:0 24px 60px rgba(255,107,53,.12);}
 .cat-card.active{background:var(--primary);border-color:var(--primary);transform:translateY(-8px);box-shadow:0 24px 60px rgba(255,107,53,.25);}
 .cat-card.active .cn{color:var(--white);}
@@ -322,6 +327,7 @@ footer{background:#0A0A0A;padding:80px 0 32px;}
 @media(max-width:600px){
   .masonry{columns:1;}.f-top{grid-template-columns:1fr;gap:32px;}
   .deals-grid,.menu-grid{grid-template-columns:1fr;}.why-grid{grid-template-columns:1fr 1fr;}
+  .cat-card{width:150px;height:180px;}
   .f-row{grid-template-columns:1fr;}.hero-stats{gap:24px;}
 }
 
@@ -1213,7 +1219,34 @@ function scrollToMenu(cat){
   }, 400);
 }
 
-function boot(){initPtcl();initBurger();initGSAP();initFades();initSwiper();initCDs();initProductImages();}
+function boot(){initPtcl();initBurger();initGSAP();initFades();initSwiper();initCDs();initProductImages();initCatScroll();}
+
+/* ── CATEGORY STRIP: wheel + drag-to-scroll ───────────────── */
+function initCatScroll(){
+  const g = document.querySelector('.cat-grid');
+  if(!g) return;
+  // vertical wheel scrolls the strip horizontally
+  g.addEventListener('wheel', e => {
+    if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ g.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, {passive:false});
+  // click-and-drag to scroll (desktop)
+  let down=false, startX=0, startLeft=0, moved=false;
+  g.addEventListener('pointerdown', e => {
+    down=true; moved=false; startX=e.clientX; startLeft=g.scrollLeft;
+    g.classList.add('dragging');
+  });
+  g.addEventListener('pointermove', e => {
+    if(!down) return;
+    const dx = e.clientX - startX;
+    if(Math.abs(dx) > 4) moved=true;
+    g.scrollLeft = startLeft - dx;
+  });
+  const end = () => { down=false; g.classList.remove('dragging'); };
+  g.addEventListener('pointerup', end);
+  g.addEventListener('pointerleave', end);
+  // suppress the card's navigation click if the user was actually dragging
+  g.addEventListener('click', e => { if(moved){ e.preventDefault(); e.stopPropagation(); } }, true);
+}
 
 /* ── REAL PRODUCT IMAGES (stock placeholders, emoji fallback) ── */
 function initProductImages(){

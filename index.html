@@ -1264,17 +1264,8 @@ function initProductImages(){
   document.querySelectorAll('.menu-category').forEach(cat => {
     const kw = KW[cat.id] || 'food';
     cat.querySelectorAll('.mi-icon').forEach((icon, i) => {
-      const emoji = icon.textContent.trim();           // keep for fallback
-      const seed  = (cat.id.length * 131 + i * 17) % 9973; // stable per item
-      const img = document.createElement('img');
-      img.className = 'mi-photo';
-      img.loading = 'lazy';
-      img.alt = cat.id.replace('cat-','') + ' item';
-      img.src = 'https://loremflickr.com/200/200/' + encodeURIComponent(kw) + '?lock=' + seed;
-      img.addEventListener('load',  () => img.classList.add('loaded'));
-      img.addEventListener('error', () => { img.remove(); icon.textContent = emoji; }); // graceful fallback
-      icon.textContent = '';
-      icon.appendChild(img);
+      const emoji = icon.textContent.trim();           // clean emoji icon — matches the deals look
+      const seed  = (cat.id.length * 131 + i * 17) % 9973; // stable per item (drives rating/tag)
 
       // make the whole card open the product detail page
       const card = icon.closest('.mi-card');
@@ -1334,12 +1325,10 @@ function openProduct(name, price, emoji, kw, seed, cat){
   document.getElementById('pm-reviews').textContent = rating + ' (' + reviews + ' reviews)';
   document.getElementById('pm-tag').style.display = (sd % 3 === 0) ? 'block' : 'none';
 
-  // hero image (reuse same seed → matches the card photo, higher res)
+  // show the clean emoji icon on the dark gradient (matches the deals look) — no photo overlay
   const img = document.getElementById('pm-img');
   img.classList.remove('loaded');
-  img.onload  = () => img.classList.add('loaded');
-  img.onerror = () => { img.removeAttribute('src'); img.classList.remove('loaded'); };
-  img.src = 'https://loremflickr.com/640/520/' + encodeURIComponent(kw) + '?lock=' + sd;
+  img.removeAttribute('src');
 
   // add-ons
   const list = document.getElementById('pm-addon-list');

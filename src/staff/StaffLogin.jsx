@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import './admin.css';
+import { useStaffAuth } from '../context/StaffAuthContext';
+import '../admin/admin.css';
+import './staff.css';
 
-export default function AdminLogin() {
-  const { login, isFirebaseConfigured } = useAuth();
+export default function StaffLogin() {
+  const { login, isFirebaseConfigured } = useStaffAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,27 +18,27 @@ export default function AdminLogin() {
     try {
       await login(email, password);
     } catch (err) {
-      setError(err.message || 'Login failed. Check your credentials.');
+      setError(err.message || 'Login failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="admin-root">
+    <div className="staff-root">
+      <div className="staff-bg-mesh" />
       <div className="admin-login">
-        <div className="admin-login-bg" />
-        <div className="admin-blob admin-blob-1" />
-        <div className="admin-blob admin-blob-2" />
+        <div className="admin-blob staff-blob-1" />
+        <div className="admin-blob staff-blob-2" />
 
-        <div className="admin-login-card">
+        <div className="admin-login-card staff-login-card">
+          <div className="staff-login-icon">👨‍🍳</div>
           <div className="admin-login-logo">HOT<span>SI</span></div>
-          <p className="admin-login-sub">Admin Panel — Sign in to manage your restaurant</p>
+          <p className="admin-login-sub">Kitchen Staff — Sign in to view orders</p>
 
           {!isFirebaseConfigured && (
             <div className="admin-warn-box">
-              <strong>Firebase not connected.</strong><br />
-              Create a <code>.env</code> file with your Firebase keys. Follow <strong>FIREBASE_SETUP.md</strong> for step-by-step instructions.
+              <strong>Firebase not connected.</strong> Add your keys to <code>.env</code>
             </div>
           )}
 
@@ -45,11 +46,11 @@ export default function AdminLogin() {
 
           <form onSubmit={handleSubmit}>
             <div className="admin-field">
-              <label className="admin-label">Email</label>
+              <label className="admin-label">Staff Email</label>
               <input
                 type="email"
                 className="admin-input"
-                placeholder="admin@hotsi.com"
+                placeholder="kitchen@hotsi.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -68,13 +69,15 @@ export default function AdminLogin() {
                 disabled={!isFirebaseConfigured}
               />
             </div>
-            <button type="submit" className="admin-btn" disabled={loading || !isFirebaseConfigured}>
-              {loading ? 'Signing in…' : 'Sign In'}
+            <button type="submit" className="admin-btn staff-btn" disabled={loading || !isFirebaseConfigured}>
+              {loading ? 'Signing in…' : 'Sign In to Kitchen'}
             </button>
           </form>
 
-          <Link to="/" className="admin-back-link">← Back to HOTSI Website</Link>
-          <Link to="/staff" className="admin-back-link" style={{ marginLeft: 16 }}>Kitchen Staff →</Link>
+          <div className="staff-login-links">
+            <Link to="/" className="admin-back-link">← Back to Website</Link>
+            <Link to="/admin" className="admin-back-link">Admin Panel →</Link>
+          </div>
         </div>
       </div>
     </div>

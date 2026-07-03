@@ -138,6 +138,12 @@ export function initFades() {
   document.querySelectorAll('.fu').forEach((el) => obs.observe(el));
 }
 
+export function revealFadeElements(root) {
+  const container = typeof root === 'string' ? document.querySelector(root) : root;
+  if (!container) return;
+  container.querySelectorAll('.fu:not(.vis)').forEach((el) => el.classList.add('vis'));
+}
+
 let swiperInstance = null;
 
 export function initSwiper() {

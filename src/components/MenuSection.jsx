@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import {
-  CATEGORY_TABS, MENU_DATA, IMAGE_KW, PIZZA_SIZES,
-} from '../data/menuData';
+import { subscribeMenuItems } from '../firebase/services';
+import { CATEGORY_TABS, MENU_DATA, IMAGE_KW, PIZZA_SIZES } from '../data/menuData';
+import { buildMenuFromFirebaseItems, getVisibleCategoryTabs } from '../utils/menuFirebase';
+import { getMenuImageSrc } from '../utils/cloudinary';
+import { revealFadeElements } from '../utils/animations';
 
 function MenuItemCard({ item, catId, index, kw, onAdd, onOpen }) {
   const delay = index % 3 === 1 ? ' d1' : index % 3 === 2 ? ' d2' : '';
   const seed = (catId.length * 131 + index * 17) % 9973;
-  const priceLabel = item.priceLabel || `PKR ${item.price.toLocaleString()}`;
+  const priceLabel = item.priceLabel || `PKR ${(Number(item.price) || 0).toLocaleString()}`;
+  const imgSrc = getMenuImageSrc(item, kw, seed);
 
   return (
     <div
@@ -15,17 +18,24 @@ function MenuItemCard({ item, catId, index, kw, onAdd, onOpen }) {
       style={{ cursor: 'pointer' }}
       onClick={(e) => {
         if (e.target.closest('.mi-add')) return;
-        onOpen(item.name, item.price, item.emoji, kw, seed, catId);
+        onOpen(item.name, item.price, item.emoji, kw, seed, catId, item.imageUrl);
       }}
     >
       <div className="mi-icon">
         <img
           className="mi-photo"
           loading="lazy"
-          alt={`${catId} item`}
-          src={`https://loremflickr.com/200/200/${encodeURIComponent(kw)}?lock=${seed}`}
+          alt={item.name}
+          src={imgSrc}
           onLoad={(e) => e.target.classList.add('loaded')}
-          onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.textContent = item.emoji; }}
+          onError={(e) => {
+            if (item.imageUrl) {
+              e.target.style.display = 'none';
+              e.target.parentElement.textContent = item.emoji;
+              return;
+            }
+            e.target.src = `https://loremflickr.com/200/200/${encodeURIComponent(kw)}?lock=${seed}`;
+          }}
         />
       </div>
       <div className="mi-details">
@@ -93,16 +103,52 @@ function PizzaCard({ name, index, onAdd, onOpen }) {
 
 export default function MenuSection() {
   const { activeMenuCat, showCat, openCart, addItem, openProduct } = useApp();
+  const [firebaseItems, setFirebaseItems] = useState([]);
+
+  useEffect(() => subscribeMenuItems(setFirebaseItems), []);
+
+  const menuData = useMemo(() => {
+    const fromFirebase = buildMenuFromFirebaseItems(firebaseItems);
+    return fromFirebase || MENU_DATA;
+  }, [firebaseItems]);
+
+  const categoryTabs = useMemo(() => {
+    const visible = getVisibleCategoryTabs(menuData);
+    return visible.length > 0 ? visible : CATEGORY_TABS;
+  }, [menuData]);
+
+  const usingFirebase = firebaseItems.some((i) => i.available !== false);
+
+  // Firebase menu loads after boot — reveal cards that missed the initial fade observer
+  useEffect(() => {
+    const id = requestAnimationFrame(() => revealFadeElements('#menu-section'));
+    return () => cancelAnimationFrame(id);
+  }, [menuData, activeMenuCat, firebaseItems.length]);
+
+  // Keep active tab valid when menu source changes
+  useEffect(() => {
+    const tabs = getVisibleCategoryTabs(menuData);
+    const list = tabs.length > 0 ? tabs : CATEGORY_TABS;
+    if (!list.some((t) => t.id === activeMenuCat)) {
+      showCat(list[0].id);
+    }
+  }, [menuData, activeMenuCat, showCat]);
 
   return (
     <section id="menu-section">
       <div className="wrap">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }} className="fu">
-          <div><div className="sl">Full Menu</div><h2 className="st">Order Now</h2></div>
+          <div>
+            <div className="sl">Full Menu</div>
+            <h2 className="st">Order Now</h2>
+            {usingFirebase && (
+              <p style={{ fontSize: 13, color: 'rgba(17,17,17,0.45)', marginTop: 6 }}>Live menu from admin</p>
+            )}
+          </div>
           <button type="button" onClick={openCart} className="btn-primary rp" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>&#x1F6D2; View Cart</button>
         </div>
         <div className="menu-cats fu d1">
-          {CATEGORY_TABS.map((tab) => (
+          {categoryTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -114,7 +160,7 @@ export default function MenuSection() {
           ))}
         </div>
 
-        {Object.entries(MENU_DATA).map(([catId, data]) => {
+        {Object.entries(menuData).map(([catId, data]) => {
           if (data.isDeals) {
             return (
               <div key={catId} className={`menu-category${activeMenuCat === catId ? ' show' : ''}`} id={`cat-${catId}`}>
@@ -126,6 +172,11 @@ export default function MenuSection() {
                       className={`deal-mi fu ${deal.delay}`}
                       style={deal.featured ? { gridColumn: '1/-1', background: 'linear-gradient(135deg,#1a1a1a,var(--primary))' } : undefined}
                     >
+                      {deal.imageUrl && (
+                        <div className="deal-photo-wrap">
+                          <img src={getMenuImageSrc(deal, 'fast-food,meal', 0, 600)} alt={deal.title} className="deal-photo" loading="lazy" />
+                        </div>
+                      )}
                       <div className="deal-badge" style={deal.featured ? { background: 'var(--secondary)', color: 'var(--dark)' } : undefined}>{deal.badge}</div>
                       <div className="deal-title" style={deal.featured ? { fontSize: '24px' } : undefined}>{deal.title}</div>
                       <div className="deal-items-list">{deal.list}</div>
@@ -150,7 +201,7 @@ export default function MenuSection() {
                       <PizzaCard key={name} name={name} index={si * 10 + i} onAdd={addItem} onOpen={openProduct} />
                     )) : section.items.map((item, i) => (
                       <MenuItemCard
-                        key={item.name}
+                        key={item.id || item.name}
                         item={item}
                         catId={catId}
                         index={si * 20 + i}

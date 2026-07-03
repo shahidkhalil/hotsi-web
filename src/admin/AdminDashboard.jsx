@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { subscribeOrders, subscribeMenuItems } from '../firebase/services';
+import { subscribeOrders, subscribeMenuItems, subscribeRevenue } from '../firebase/services';
 import { isFirebaseConfigured } from '../firebase/config';
 import { countWebsiteMenuItems } from '../data/menuData';
+import { getTodayKey } from '../utils/revenueUtils';
 import StatCard from './components/StatCard';
 import DashboardPanel, { OrderFeedItem } from './components/DashboardPanel';
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [revenue, setRevenue] = useState([]);
   const [sync, setSync] = useState({ live: isFirebaseConfigured, error: null });
   const prevTotal = useRef(0);
 
@@ -18,6 +20,7 @@ export default function AdminDashboard() {
         setSync((s) => ({ ...s, ...meta }));
       }),
       subscribeMenuItems((items) => setMenuItems(items)),
+      subscribeRevenue(setRevenue),
     ];
     return () => unsubs.forEach((u) => u());
   }, []);
@@ -27,12 +30,14 @@ export default function AdminDashboard() {
   const placed = orders.filter((o) => o.status === 'placed').length;
   const websiteMenuCount = countWebsiteMenuItems();
   const totalMenuCount = websiteMenuCount + menuItems.length;
+  const todayKey = getTodayKey();
+  const todayRevenue = Math.max(0, revenue.find((r) => r.period === 'daily' && r.periodKey === todayKey)?.total || 0);
 
   const stats = [
+    { icon: '💰', value: todayRevenue, label: "Today's Revenue", color: '#a855f7', to: '/admin/revenue', currency: true },
     { icon: '🛒', value: orders.length, label: 'Total Orders', color: '#FF6B35', to: '/admin/orders', pulse: orders.length !== prevTotal.current },
     { icon: '⏳', value: pending, label: 'Pending', color: '#f59e0b', to: '/admin/orders' },
     { icon: '✅', value: confirmed, label: 'Confirmed', color: '#60a5fa', to: '/admin/orders' },
-    { icon: '🍔', value: totalMenuCount, label: 'Menu Items', color: '#22c55e', to: '/admin/menu' },
   ];
 
   useEffect(() => {

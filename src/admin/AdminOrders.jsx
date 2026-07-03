@@ -5,8 +5,11 @@ import {
   updateOrderStatus,
   deleteOrder,
   mergeOrders,
+  forwardOrderToStaff,
 } from '../firebase/services';
+import { useAuth } from '../context/AuthContext';
 import OrderReceipt from './components/OrderReceipt';
+import '../staff/staff.css';
 
 function formatDate(ts) {
   if (!ts) return '—';
@@ -19,8 +22,17 @@ function getItemsList(o) {
   return [];
 }
 
-const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'placed', 'cancelled'];
+const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'with_staff', 'done', 'placed', 'cancelled'];
 const STATUS_STEPS = ['pending', 'confirmed', 'placed'];
+
+function StaffStatusBadge({ order }) {
+  if (!order.forwardedToStaff) return null;
+  const label = order.staffStatus === 'done' ? 'Kitchen Ready ✓'
+    : order.staffStatus === 'preparing' ? 'Preparing…'
+    : 'With Staff';
+  const cls = order.staffStatus === 'done' ? 'done' : 'with_staff';
+  return <span className={`admin-badge admin-badge-${cls}`}>{label}</span>;
+}
 
 function StatusStepper({ status, onChange, disabled }) {
   return (
@@ -43,7 +55,7 @@ function StatusStepper({ status, onChange, disabled }) {
   );
 }
 
-function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, onDelete }) {
+function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, onDelete, onForwardToStaff, forwardingId }) {
   const items = getItemsList(order);
   const initial = (order.customerName?.[0] || 'C').toUpperCase();
 
@@ -66,6 +78,7 @@ function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, 
         </div>
         <div className="admin-order-card-meta">
           <code className="admin-order-id">{order.orderId || '—'}</code>
+          <StaffStatusBadge order={order} />
           <span className="admin-order-date">{formatDate(order.createdAt)}</span>
         </div>
       </div>
@@ -93,13 +106,32 @@ function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, 
           <strong>PKR {(order.total || 0).toLocaleString()}</strong>
         </div>
 
-        {order.status !== 'cancelled' ? (
-          <StatusStepper status={order.status} onChange={(s) => onStatus(order.id, s)} />
-        ) : (
+        {order.status === 'cancelled' ? (
           <span className="admin-badge admin-badge-cancelled">Cancelled</span>
+        ) : order.status === 'with_staff' ? (
+          <span className="admin-badge admin-badge-with_staff">👨‍🍳 With Kitchen</span>
+        ) : order.status === 'done' ? (
+          <div className="admin-order-done-row">
+            <span className="admin-badge admin-badge-done">✅ Kitchen Ready</span>
+            <button type="button" className="admin-status-step admin-status-step-placed" onClick={() => onStatus(order.id, 'placed')}>
+              📦 Mark Placed
+            </button>
+          </div>
+        ) : (
+          <StatusStepper status={order.status} onChange={(s) => onStatus(order.id, s)} />
         )}
 
         <div className="admin-order-card-actions">
+          {!order.forwardedToStaff && ['pending', 'confirmed'].includes(order.status) && (
+            <button
+              type="button"
+              className="admin-order-action-btn staff"
+              disabled={forwardingId === order.id}
+              onClick={() => onForwardToStaff(order.id)}
+            >
+              {forwardingId === order.id ? 'Sending…' : '👨‍🍳 Send to Staff'}
+            </button>
+          )}
           <button type="button" className="admin-order-action-btn" onClick={() => onReceipt(order)}>
             🧾 Receipt
           </button>
@@ -118,6 +150,7 @@ function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, 
 }
 
 export default function AdminOrders() {
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -125,6 +158,7 @@ export default function AdminOrders() {
   const [selected, setSelected] = useState([]);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const [merging, setMerging] = useState(false);
+  const [forwardingId, setForwardingId] = useState(null);
   const [form, setForm] = useState({ customerName: '', contact: '', items: '', total: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
@@ -140,8 +174,22 @@ export default function AdminOrders() {
     all: items.filter((o) => o.status !== 'merged').length,
     pending: items.filter((o) => o.status === 'pending').length,
     confirmed: items.filter((o) => o.status === 'confirmed').length,
+    with_staff: items.filter((o) => o.status === 'with_staff').length,
+    done: items.filter((o) => o.status === 'done').length,
     placed: items.filter((o) => o.status === 'placed').length,
     cancelled: items.filter((o) => o.status === 'cancelled').length,
+  };
+
+  const handleForwardToStaff = async (orderId) => {
+    if (!window.confirm('Send this order to kitchen staff?')) return;
+    setForwardingId(orderId);
+    try {
+      await forwardOrderToStaff(orderId, user?.email || '');
+    } catch (err) {
+      alert(err.message || 'Could not forward order');
+    } finally {
+      setForwardingId(null);
+    }
   };
 
   const handleCreate = async (e) => {
@@ -287,6 +335,8 @@ export default function AdminOrders() {
               onSelect={() => toggleSelect(o.id)}
               onStatus={updateOrderStatus}
               onReceipt={setReceiptOrder}
+              onForwardToStaff={handleForwardToStaff}
+              forwardingId={forwardingId}
               onDelete={(id) => { if (window.confirm('Delete this order?')) deleteOrder(id); }}
             />
           ))}

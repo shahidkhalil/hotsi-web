@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { PM_ADDONS, PM_DESC } from '../context/AppContext';
+import { getProductImageSrc } from '../utils/cloudinary';
 
 export default function Cart() {
   const {
@@ -160,7 +161,7 @@ export function ProductModal() {
   const stars = '★'.repeat(full) + '☆'.repeat(5 - full);
   const showTag = sd % 3 === 0;
   const total = pmRecalc(pm);
-  const imgSrc = `https://loremflickr.com/640/520/${encodeURIComponent(pm.kw)}?lock=${sd}`;
+  const imgSrc = getProductImageSrc(pm.imageUrl, pm.kw, sd);
 
   return (
     <>

@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import AdminLogin from './AdminLogin';
 import AdminLayout from './AdminLayout';
 import AdminDashboard from './AdminDashboard';
+import AdminRevenue from './AdminRevenue';
 import AdminOrders from './AdminOrders';
 import AdminMenu from './AdminMenu';
 import AdminSettings from './AdminSettings';
@@ -48,6 +49,7 @@ function AdminRoutesInner() {
         }
       >
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="revenue" element={<AdminRevenue />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="menu" element={<AdminMenu />} />
         <Route path="settings" element={<AdminSettings />} />

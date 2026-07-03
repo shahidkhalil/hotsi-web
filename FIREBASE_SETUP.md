@@ -11,9 +11,9 @@ This guide walks you through connecting **Firebase Authentication** and **Cloud 
 | Feature | Where |
 |---------|--------|
 | Admin login | `http://localhost:5173/admin` |
+| Staff (kitchen) login | `http://localhost:5173/staff` |
 | Dashboard stats | Live counts from Firestore |
-| Reservations | Contact form → Firestore → Admin panel |
-| Orders | Log & track orders in admin |
+| Orders | Log, forward to staff & track in admin |
 | Menu items | Extra items stored in Firebase |
 | Settings | Phone, address, hours in Firebase |
 
@@ -80,6 +80,25 @@ Replace each value with the ones from **Project settings → General → Your ap
 
 > **Never commit `.env` to Git.** It is already listed in `.gitignore`.
 
+### Cloudinary (menu product photos)
+
+1. Create a free account at [cloudinary.com](https://cloudinary.com)
+2. Dashboard → copy your **Cloud name**
+3. **Settings → Upload → Upload presets → Add upload preset**
+   - Signing mode: **Unsigned**
+   - Folder: `hotsi-menu` (optional)
+   - Save preset name (e.g. `hotsi_menu_unsigned`)
+4. Add to `.env`:
+
+```env
+VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+VITE_CLOUDINARY_UPLOAD_PRESET=hotsi_menu_unsigned
+```
+
+5. Restart `npm run dev` — in **Admin → Menu**, use **Click to upload photo** when adding/editing products
+
+Images upload to Cloudinary; the URL is saved in Firestore on each `menu_items` document as `imageUrl`.
+
 ---
 
 ## Step 6 — Restrict Admin Access (Recommended)
@@ -134,6 +153,13 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+    match /staff/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /revenue/{id} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
 ```
@@ -156,12 +182,76 @@ npm run dev
 |-----|---------|
 | `http://localhost:5173/` | Public HOTSI website (unchanged) |
 | `http://localhost:5173/admin` | Admin login & dashboard |
+| `http://localhost:5173/staff` | Kitchen staff login & orders |
 
-Sign in with the email/password you created in Step 3.
+Sign in with the email/password you created in Step 3 (admin) or Step 11 (staff).
 
 ---
 
-## Step 9 — Test Everything
+## Step 11 — Add Kitchen Staff Users
+
+The staff portal at **`/staff`** lets kitchen staff see orders forwarded by admin and mark them ready.
+
+### Create a staff account
+
+1. Go to **Firebase Console → Authentication → Users**
+2. Click **Add user**
+3. Enter staff email (e.g. `kitchen@yourdomain.com`) and a password
+4. Click **Add user**
+5. Copy the **User UID**
+
+### Add staff document in Firestore
+
+1. Go to **Firestore Database**
+2. Create collection **`staff`** (if it does not exist)
+3. Add a document with **Document ID = the User UID** from above
+4. Add these fields:
+
+| Field | Type | Example |
+|-------|------|---------|
+| `uid` | string | same UID |
+| `email` | string | `kitchen@yourdomain.com` |
+| `name` | string | `Ahmed` |
+| `role` | string | `kitchen` |
+| `active` | boolean | `true` |
+
+5. Staff can now sign in at **`http://localhost:5173/staff`**
+
+> Staff users must **not** be in the `admins` collection unless they should also access `/admin`.
+
+### How the staff flow works
+
+1. Customer places order on website → appears in **Admin → Orders** as `pending`
+2. Admin confirms order and clicks **👨‍🍳 Send to Staff**
+3. Order appears instantly in **Staff → Kitchen Orders**
+4. Staff clicks **Start Preparing** → **Mark Ready**
+5. Admin sees **Kitchen Ready** and can **Mark Placed** for delivery/pickup
+
+### Optional — tighter Firestore rules for staff
+
+For production, you can restrict staff to only read/update forwarded orders:
+
+```javascript
+function isStaff() {
+  return request.auth != null
+    && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+    && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active != false;
+}
+
+match /orders/{id} {
+  allow create: if true;
+  allow read, update: if request.auth != null && (
+    exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+    || (isStaff() && resource.data.forwardedToStaff == true)
+  );
+  allow delete: if request.auth != null
+    && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+}
+```
+
+---
+
+## Step 12 — Test Everything
 
 ### Reservations
 1. Open the main site → scroll to **Reserve Your Table**
@@ -182,9 +272,16 @@ Sign in with the email/password you created in Step 3.
 1. Go to `/admin` → **Settings**
 2. Update phone/address and click **Save Settings**
 
+### Staff portal
+1. Create a staff user (Step 11)
+2. In `/admin` → Orders, open a pending order → **Send to Staff**
+3. Open `/staff` and sign in as staff — order should appear
+4. Click **Start Preparing** → **Mark Ready**
+5. Back in `/admin`, order shows **Kitchen Ready** → **Mark Placed**
+
 ---
 
-## Step 10 — Deploy (Optional)
+## Step 13 — Deploy (Optional)
 
 ### Build
 
@@ -238,6 +335,8 @@ Rebuild after adding env vars.
 | `menu_items` | Extra menu entries | Admin panel |
 | `settings` | Business info | Admin panel |
 | `admins` | Allowed admin UIDs | You (manually in console) |
+| `staff` | Kitchen staff UIDs | You (manually in console) |
+| `revenue` | Daily / weekly / monthly revenue snapshots | App (auto from orders) |
 
 ---
 
@@ -248,7 +347,8 @@ Rebuild after adding env vars.
 | Login page says "Firebase not connected" | Create `.env` with all 6 `VITE_FIREBASE_*` keys and restart `npm run dev` |
 | "You do not have admin access" | Add your UID to the `admins` collection in Firestore |
 | Reservations not appearing | Check Firestore rules allow `create` on `reservations` |
-| `/admin` shows blank page on deploy | Add SPA rewrite rules (Step 10) |
+| "You do not have staff access" | Add a `staff` document with the user's UID and `active: true` |
+| Staff page blank on deploy | Add SPA rewrite rules (Step 13) |
 | `permission-denied` errors | Publish Firestore rules from Step 7 |
 
 ---
@@ -261,7 +361,13 @@ src/
     config.js       ← reads VITE_FIREBASE_* from .env
     services.js     ← Firestore CRUD functions
   context/
-    AuthContext.jsx ← login/logout state
+    AuthContext.jsx     ← admin login/logout
+    StaffAuthContext.jsx ← staff login/logout
+  staff/
+    StaffLogin.jsx
+    StaffLayout.jsx
+    StaffOrders.jsx
+    staff.css           ← kitchen panel styles
   admin/
     AdminLogin.jsx
     AdminDashboard.jsx

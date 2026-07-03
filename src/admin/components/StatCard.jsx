@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { useAnimatedCounter } from '../hooks/useAnimatedCounter';
 
-function StatCardInner({ icon, count, label, color }) {
+function StatCardInner({ icon, count, label, color, currency }) {
   return (
     <>
       <div className="admin-stat-glow" style={{ background: `radial-gradient(circle, ${color}35, transparent 70%)` }} />
@@ -14,7 +14,9 @@ function StatCardInner({ icon, count, label, color }) {
           <span className="admin-stat-icon">{icon}</span>
         </div>
         <div className="admin-stat-meta">
-          <div className="admin-stat-num" style={{ color }}>{count.toLocaleString()}</div>
+          <div className="admin-stat-num" style={{ color }}>
+            {currency ? `PKR ${count.toLocaleString()}` : count.toLocaleString()}
+          </div>
           <div className="admin-stat-label">{label}</div>
         </div>
       </div>
@@ -26,7 +28,7 @@ function StatCardInner({ icon, count, label, color }) {
   );
 }
 
-export default function StatCard({ icon, value, label, color, to, delay = 0, pulse }) {
+export default function StatCard({ icon, value, label, color, to, delay = 0, pulse, currency }) {
   const cardRef = useRef(null);
   const count = useAnimatedCounter(value);
 
@@ -55,14 +57,14 @@ export default function StatCard({ icon, value, label, color, to, delay = 0, pul
   if (to) {
     return (
       <Link to={to} className={className} style={style} ref={cardRef}>
-        <StatCardInner icon={icon} count={count} label={label} color={color} />
+        <StatCardInner icon={icon} count={count} label={label} color={color} currency={currency} />
       </Link>
     );
   }
 
   return (
     <div ref={cardRef} className={className} style={style}>
-      <StatCardInner icon={icon} count={count} label={label} color={color} />
+      <StatCardInner icon={icon} count={count} label={label} color={color} currency={currency} />
     </div>
   );
 }

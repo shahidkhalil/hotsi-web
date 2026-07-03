@@ -131,8 +131,8 @@ export function AppProvider({ children }) {
     setTimeout(() => showCat(cat), 400);
   }, [showCat]);
 
-  const openProduct = useCallback((name, price, emoji, kw, seed, cat) => {
-    setPm({ name, base: price, emoji: emoji || '🍔', kw: kw || 'food', qty: 1, addons: new Set(), seed: parseInt(seed) || 0, cat: cat || '' });
+  const openProduct = useCallback((name, price, emoji, kw, seed, cat, imageUrl = '') => {
+    setPm({ name, base: price, emoji: emoji || '🍔', kw: kw || 'food', qty: 1, addons: new Set(), seed: parseInt(seed) || 0, cat: cat || '', imageUrl: imageUrl || '' });
     setProductOpen(true);
     document.body.style.overflow = 'hidden';
   }, []);

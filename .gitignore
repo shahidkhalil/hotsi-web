@@ -3,6 +3,14 @@
 test.txt
 .claude/
 
+# Dependencies & build
+node_modules/
+dist/
+
+# Environment (never commit secrets)
+.env
+.env.local
+
 # OS / editor cruft
 Thumbs.db
 .DS_Store

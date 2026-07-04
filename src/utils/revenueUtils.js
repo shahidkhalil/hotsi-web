@@ -266,3 +266,27 @@ export function emptyRevenueSnapshot(period, periodKey) {
 export function formatPKR(amount) {
   return `PKR ${Math.round(amount || 0).toLocaleString()}`;
 }
+
+/** Live revenue from orders — preferred over Firestore snapshots for admin UI */
+export function mergeRevenueWithOrders(firestoreRevenue, orders) {
+  const byId = new Map();
+  buildRevenueSnapshots(orders).forEach((snap, id) => {
+    byId.set(id, snap);
+  });
+  (firestoreRevenue || []).forEach((snap) => {
+    const id = revenueDocId(snap.period, snap.periodKey);
+    if (!byId.has(id)) byId.set(id, snap);
+  });
+  return [...byId.values()];
+}
+
+export function getTodayRevenueFromOrders(orders) {
+  const key = getTodayKey();
+  const snap = buildRevenueSnapshots(orders).get(revenueDocId('daily', key));
+  return Math.max(0, snap?.total || 0);
+}
+
+export function getSnapshotFromOrders(orders, period, periodKey) {
+  const snap = buildRevenueSnapshots(orders).get(revenueDocId(period, periodKey));
+  return snap || emptyRevenueSnapshot(period, periodKey);
+}

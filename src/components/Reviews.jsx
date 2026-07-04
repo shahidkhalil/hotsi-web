@@ -1,3 +1,5 @@
+import { IconGoogle } from './SocialIcons';
+
 const REVIEWS = [
   { av: '😍', name: 'Sarah M.', date: '2 days ago', text: '"The HOTSI Classic Burger is unlike anything I\'ve had. The smash patty is perfectly crispy and the sauce is addictive. I order twice a week now!"' },
   { av: '🙌', name: 'Omar K.', date: '1 week ago', text: '"Best shawarma in town, no competition. The garlic toum is 10/10. Delivery was exactly 22 minutes. HOTSI never disappoints!"' },
@@ -9,7 +11,7 @@ const REVIEWS = [
 
 export default function Reviews() {
   return (
-    <section id="reviews">
+    <section id="reviews" className="section-divider-top">
       <div className="wrap">
         <div className="rev-hdr fu">
           <div className="sl" style={{ justifyContent: 'center' }}>Testimonials</div>
@@ -34,7 +36,10 @@ export default function Reviews() {
                       <div className="r-date">{r.date}</div>
                     </div>
                     <div className="r-stars">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</div>
-                    <div className="r-g">G</div>
+                    <div className="r-google" title="Google Review">
+                      <IconGoogle />
+                      <span>Google</span>
+                    </div>
                   </div>
                   <p className="r-text">{r.text}</p>
                 </div>

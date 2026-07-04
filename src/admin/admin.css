@@ -1173,6 +1173,28 @@
   margin-top: 8px;
 }
 .admin-receipt-total strong { color: var(--primary); }
+.admin-receipt-spin-note { font-size: 11px; color: #16A34A; font-weight: 600; margin-top: 2px; }
+.admin-receipt-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 99px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.admin-receipt-badge-free { background: rgba(22, 163, 74, 0.15); color: #16A34A; }
+.admin-receipt-badge-discount { background: rgba(255, 107, 53, 0.15); color: var(--primary); }
+.admin-receipt-was {
+  display: block;
+  font-size: 11px;
+  color: #999;
+  text-decoration: line-through;
+  font-weight: 400;
+}
+.admin-receipt-sub { font-size: 13px; margin-top: 8px; }
+.admin-receipt-savings { font-size: 13px; color: #16A34A; font-weight: 600; }
 .admin-receipt-footer {
   text-align: center;
   font-size: 11px;
@@ -1181,6 +1203,144 @@
 }
 .admin-receipt-fallback { font-size: 13px; color: #444; }
 .admin-receipt-merge { font-size: 12px; color: #666; margin: 4px 0; }
+
+/* POS thermal receipt style */
+.pos-receipt-wrap { max-width: 340px; }
+.pos-receipt-paper {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 24px 20px !important;
+  border-radius: 4px !important;
+  color: #111;
+}
+.pos-header { text-align: center; margin-bottom: 8px; }
+.pos-store-name {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 6px;
+}
+.pos-store-name span { color: var(--primary); }
+.pos-address, .pos-free-delivery, .pos-phones {
+  margin: 2px 0;
+  font-size: 11px;
+  color: #222;
+  line-height: 1.4;
+}
+.pos-free-delivery { margin-top: 6px; font-weight: 700; }
+.pos-rule {
+  border: none;
+  border-top: 1px dashed #333;
+  margin: 10px 0;
+}
+.pos-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.pos-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.pos-table th {
+  text-align: left;
+  font-weight: 700;
+  padding: 4px 2px;
+  border-bottom: 1px solid #333;
+  font-size: 10px;
+}
+.pos-table th:nth-child(2),
+.pos-table th:nth-child(3),
+.pos-table th:nth-child(4),
+.pos-table td:nth-child(2),
+.pos-table td:nth-child(3),
+.pos-table td:nth-child(4) {
+  text-align: right;
+  white-space: nowrap;
+}
+.pos-table td {
+  padding: 5px 2px;
+  vertical-align: top;
+  border-bottom: 1px dotted #ccc;
+}
+.pos-item-name { max-width: 120px; word-break: break-word; }
+.pos-free-tag {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  background: #111;
+  color: #fff;
+  padding: 1px 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.pos-fallback { font-style: italic; color: #555; padding: 8px 0; }
+.pos-savings { font-size: 11px; color: #16A34A; margin: 4px 0; }
+.pos-grand-total {
+  text-align: center;
+  font-size: 14px;
+  margin: 8px 0 4px;
+}
+.pos-paid-row {
+  text-align: right;
+  font-size: 11px;
+  margin: 2px 0;
+}
+.pos-end-sale {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  margin: 10px 0;
+  padding: 6px 0;
+  border-top: 1px dashed #333;
+  border-bottom: 1px dashed #333;
+}
+.pos-payment-block p {
+  margin: 3px 0;
+  font-size: 11px;
+}
+.pos-status { color: #888; font-size: 10px !important; }
+.pos-delivery-block { margin: 8px 0; }
+.pos-delivery-title {
+  font-weight: 700;
+  text-decoration: underline;
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+.pos-delivery-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 11px;
+}
+.pos-delivery-grid span { color: #444; }
+.pos-delivery-grid strong { font-weight: 700; word-break: break-word; }
+.pos-footer-msg {
+  text-align: center;
+  margin: 12px 0 8px;
+  font-size: 11px;
+}
+.pos-enjoy {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1px;
+  margin: 0 0 4px;
+}
+.pos-print-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #666;
+  margin-top: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 @media print {
   body * { visibility: hidden; }
@@ -1231,6 +1391,39 @@
 }
 .admin-form-grid .admin-field.full { grid-column: 1 / -1; }
 .admin-form-actions { padding: 0 26px 26px; display: flex; gap: 12px; flex-wrap: wrap; }
+.admin-toggle-row { display: flex; align-items: center; gap: 14px; padding: 4px 0; }
+.admin-toggle { width: 54px; height: 30px; background: rgba(0,0,0,.12); border: 1.5px solid rgba(0,0,0,.1); border-radius: 99px; position: relative; cursor: pointer; transition: background .3s, border-color .3s; flex-shrink: 0; }
+.admin-toggle.on { background: var(--primary); border-color: var(--primary); }
+.admin-toggle-knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: #fff; border-radius: 50%; transition: transform .3s cubic-bezier(.34,1.56,.64,1); display: block; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+.admin-toggle.on .admin-toggle-knob { transform: translateX(24px); }
+.admin-toggle-status { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+.admin-settings-block { padding: 20px 24px; }
+.admin-settings-hint { margin: 6px 0 0; font-size: 13px; color: var(--text-muted); }
+.admin-settings-intro { padding: 0 24px 16px; margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.admin-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+.admin-category-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+.admin-category-toggle:hover { border-color: rgba(255, 107, 53, 0.35); }
+.admin-category-toggle.visible-cat { border-color: rgba(34, 197, 94, 0.25); }
+.admin-category-toggle.hidden-cat { opacity: 0.75; border-color: rgba(239, 68, 68, 0.25); }
+.admin-category-toggle-emoji { font-size: 22px; }
+.admin-category-toggle-label { flex: 1; font-weight: 600; font-size: 14px; }
 
 .admin-live {
   display: inline-flex;

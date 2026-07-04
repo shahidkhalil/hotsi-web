@@ -422,21 +422,67 @@ export async function seedAllMenuItems() {
 }
 
 /* ── Settings ───────────────────────────────────────────────── */
+const SETTINGS_DOC_ID = 'site';
+
 export async function getSettings() {
   if (!isFirebaseConfigured || !db) return null;
-  const snap = await getDocs(collection(db, 'settings'));
-  if (snap.empty) return null;
-  const d = snap.docs[0];
+  const siteSnap = await getDoc(doc(db, 'settings', SETTINGS_DOC_ID));
+  if (siteSnap.exists()) return { id: siteSnap.id, ...siteSnap.data() };
+
+  const legacy = await getDocs(query(collection(db, 'settings'), orderBy('updatedAt', 'desc'), limit(1)));
+  if (legacy.empty) return null;
+  const d = legacy.docs[0];
   return { id: d.id, ...d.data() };
 }
 
-export async function saveSettings(id, data) {
-  if (id) {
-    await updateDoc(doc(requireDb(), 'settings', id), { ...data, updatedAt: serverTimestamp() });
-    return id;
+export function subscribeSettings(callback) {
+  if (!isFirebaseConfigured || !db) {
+    callback(null);
+    return () => {};
   }
-  const ref = await addDoc(collection(requireDb(), 'settings'), { ...data, updatedAt: serverTimestamp() });
-  return ref.id;
+
+  const siteRef = doc(db, 'settings', SETTINGS_DOC_ID);
+  let legacyUnsub = null;
+
+  const unsub = onSnapshot(
+    siteRef,
+    (snap) => {
+      if (snap.exists()) {
+        callback({ id: snap.id, ...snap.data() });
+        return;
+      }
+      if (!legacyUnsub) {
+        legacyUnsub = onSnapshot(
+          query(collection(db, 'settings'), orderBy('updatedAt', 'desc'), limit(1)),
+          (legacySnap) => {
+            if (legacySnap.empty) {
+              callback(null);
+              return;
+            }
+            const d = legacySnap.docs[0];
+            callback({ id: d.id, ...d.data() });
+          },
+          () => callback(null),
+        );
+      }
+    },
+    () => callback(null),
+  );
+
+  return () => {
+    unsub();
+    legacyUnsub?.();
+  };
+}
+
+export async function saveSettings(id, data) {
+  const targetId = id || SETTINGS_DOC_ID;
+  await setDoc(
+    doc(requireDb(), 'settings', targetId),
+    { ...data, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+  return targetId;
 }
 
 /* ── Staff ────────────────────────────────────────────────── */

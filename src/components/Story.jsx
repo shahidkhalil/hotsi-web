@@ -1,11 +1,17 @@
+import { STORY_IMAGES } from '../utils/visualAssets';
+
 export default function Story() {
   return (
-    <section id="story">
+    <section id="story" className="section-divider-top">
       <div className="wrap">
         <div className="story-in">
           <div className="s-vis fu">
-            <div className="s-main">&#x1F354;</div>
-            <div className="s-acc">&#x1F468;&#x200D;&#x1F373;</div>
+            <div className="s-main">
+              <img src={STORY_IMAGES.dish} alt="HOTSI signature dish" className="s-photo" loading="lazy" />
+            </div>
+            <div className="s-acc">
+              <img src={STORY_IMAGES.kitchen} alt="HOTSI kitchen" className="s-photo" loading="lazy" />
+            </div>
             <div className="s-badge">
               <div className="s-num">8+</div>
               <div className="s-txt"><strong>Years</strong>of crafting premium fast food</div>

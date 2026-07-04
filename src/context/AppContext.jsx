@@ -1,6 +1,17 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { submitCustomerOrder } from '../firebase/services';
 import { calcOrderTotal, formatItemsText, generateOrderId, openAdminOrderNotification, openWhatsAppContact } from '../utils/orderUtils';
+import { useSiteSettings } from './SiteSettingsContext';
+import {
+  loadSpinReward,
+  saveSpinReward,
+  clearSpinReward,
+  buildSpinCartAdd,
+  mergeSpinLinesIntoCart,
+  reconcileSpinCart,
+  removeLinkedBogoFree,
+  stripSpinFromCart,
+} from '../utils/spinReward';
 
 const AppContext = createContext(null);
 
@@ -24,6 +35,7 @@ export const PM_DESC = {
 };
 
 export function AppProvider({ children }) {
+  const { spinnerOfferEnabled, loaded: settingsLoaded } = useSiteSettings();
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
@@ -33,9 +45,63 @@ export function AppProvider({ children }) {
   const [booted, setBooted] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
   const [pm, setPm] = useState({ name: '', base: 0, emoji: '🍔', kw: 'food', qty: 1, addons: new Set(), seed: 0, cat: '' });
+  const [spinReward, setSpinReward] = useState(() => loadSpinReward());
+
+  const activeSpinReward = useMemo(
+    () => (spinnerOfferEnabled ? spinReward : null),
+    [spinnerOfferEnabled, spinReward],
+  );
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    if (spinnerOfferEnabled) return;
+    clearSpinReward();
+    setSpinReward(null);
+    setCart((prev) => stripSpinFromCart(prev));
+  }, [spinnerOfferEnabled, settingsLoaded]);
+
+  useEffect(() => {
+    if (spinReward && spinnerOfferEnabled) saveSpinReward(spinReward);
+  }, [spinReward, spinnerOfferEnabled]);
+
+  useEffect(() => {
+    if (!cartOpen || !activeSpinReward) return;
+    setCart((prev) => {
+      const { cart: fixed, rewardUpdated } = reconcileSpinCart(prev, activeSpinReward);
+      if (rewardUpdated) setSpinReward(rewardUpdated);
+      if (JSON.stringify(fixed) === JSON.stringify(prev)) return prev;
+      return fixed;
+    });
+  }, [cartOpen, activeSpinReward]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const setActiveSpinReward = useCallback((reward) => {
+    setSpinReward(reward);
+    if (reward) saveSpinReward(reward);
+  }, []);
+
+  /** Add item — BOGO free line auto-added on first paid spin-category item */
+  const addItem = useCallback((name, price, emoji, categoryId = '') => {
+    setPlacedOrder(null);
+    let rewardUpdate = null;
+    let toastNote = null;
+
+    setCart((prev) => {
+      const { lines, rewardUpdate: ru, toastNote: tn } = buildSpinCartAdd(
+        name, price, emoji, categoryId, activeSpinReward, prev,
+      );
+      if (ru) rewardUpdate = ru;
+      toastNote = tn;
+      return mergeSpinLinesIntoCart(prev, lines);
+    });
+
+    if (rewardUpdate) setSpinReward(rewardUpdate);
+    setCartToast({ name, emoji: emoji || '🍔', spinNote: toastNote });
+  }, [activeSpinReward]);
+
+  const clearCartToast = useCallback(() => setCartToast(null), []);
 
   const resetPlacedOrder = useCallback(() => setPlacedOrder(null), []);
 
@@ -50,35 +116,52 @@ export function AppProvider({ children }) {
     if (!productOpen) document.body.style.overflow = '';
   }, [productOpen]);
 
-  /** + button — add to cart + show toast */
-  const addItem = useCallback((name, price, emoji) => {
-    setPlacedOrder(null);
-    setCart((prev) => {
-      const existing = prev.find((i) => i.name === name && i.price === price);
-      if (existing) {
-        return prev.map((i) => (i.name === name && i.price === price ? { ...i, qty: i.qty + 1 } : i));
-      }
-      return [...prev, { name, price, emoji: emoji || '🍔', qty: 1 }];
-    });
-    setCartToast({ name, emoji: emoji || '🍔' });
-  }, []);
-
-  const clearCartToast = useCallback(() => setCartToast(null), []);
+  const reconcileCart = useCallback((items) => {
+    if (!activeSpinReward) return items;
+    const { cart: fixed, rewardUpdated } = reconcileSpinCart(items, activeSpinReward);
+    if (rewardUpdated) setSpinReward(rewardUpdated);
+    return fixed;
+  }, [activeSpinReward]);
 
   const changeQty = useCallback((idx, delta) => {
     setPlacedOrder(null);
     setCart((prev) => {
+      const item = prev[idx];
+      if (item?.isSpinFree) return prev;
+
       const next = [...prev];
-      next[idx].qty += delta;
-      if (next[idx].qty <= 0) next.splice(idx, 1);
-      return next;
+      next[idx] = { ...next[idx], qty: next[idx].qty + delta };
+
+      if (next[idx].qty <= 0) {
+        const removed = next[idx];
+        let filtered = next.filter((_, i) => i !== idx);
+        filtered = removeLinkedBogoFree(filtered, removed, activeSpinReward);
+        return reconcileCart(filtered);
+      }
+
+      return reconcileCart(next);
     });
-  }, []);
+  }, [reconcileCart, activeSpinReward]);
 
   const removeItem = useCallback((idx) => {
     setPlacedOrder(null);
-    setCart((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+    setCart((prev) => {
+      const removed = prev[idx];
+      let next = prev.filter((_, i) => i !== idx);
+      next = removeLinkedBogoFree(next, removed, activeSpinReward);
+
+      if (removed?.isSpinFree && activeSpinReward?.prizeKey === 'free') {
+        const { cart: fixed, rewardUpdated } = reconcileSpinCart(next, {
+          ...activeSpinReward,
+          freeItemUsed: false,
+        });
+        if (rewardUpdated) setSpinReward(rewardUpdated);
+        return fixed;
+      }
+
+      return reconcileCart(next);
+    });
+  }, [reconcileCart, activeSpinReward]);
 
   const placeCartOrder = useCallback(async (customer) => {
     if (cart.length === 0) throw new Error('Cart is empty');
@@ -123,7 +206,7 @@ export function AppProvider({ children }) {
   const showCat = useCallback((id) => {
     setActiveMenuCat(id);
     setActiveCatCard(id === 'chicken' ? 'burgers' : id);
-    document.getElementById('menu-section')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('menu-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   const scrollToMenu = useCallback((cat) => {
@@ -163,24 +246,33 @@ export function AppProvider({ children }) {
 
   const pmAddToCart = useCallback(() => {
     setPlacedOrder(null);
+    let rewardUpdate = null;
+    let toastNote = null;
+
     setPm((prev) => {
       let unit = prev.base;
       const extras = [];
       prev.addons.forEach((i) => { unit += PM_ADDONS[i].price; extras.push(PM_ADDONS[i].name); });
       const label = extras.length ? `${prev.name} (+ ${extras.join(', ')})` : prev.name;
+      const cat = prev.cat || '';
+
       setCart((cartPrev) => {
-        const existing = cartPrev.find((i) => i.name === label && i.price === unit);
-        if (existing) {
-          return cartPrev.map((i) => (i.name === label && i.price === unit ? { ...i, qty: i.qty + prev.qty } : i));
-        }
-        return [...cartPrev, { name: label, price: unit, emoji: prev.emoji, qty: prev.qty }];
+        const { lines, rewardUpdate: ru, toastNote: tn } = buildSpinCartAdd(
+          label, unit, prev.emoji, cat, activeSpinReward, cartPrev,
+        );
+        if (ru) rewardUpdate = ru;
+        toastNote = tn;
+        return mergeSpinLinesIntoCart(cartPrev, lines.map((l) => ({ ...l, qty: prev.qty })));
       });
+
+      if (rewardUpdate) setSpinReward(rewardUpdate);
+      setCartToast({ name: label, emoji: prev.emoji, spinNote: toastNote });
       return prev;
     });
     setProductOpen(false);
     setCartOpen(true);
     document.body.style.overflow = 'hidden';
-  }, []);
+  }, [activeSpinReward]);
 
   return (
     <AppContext.Provider value={{
@@ -191,6 +283,7 @@ export function AppProvider({ children }) {
       activeMenuCat, activeCatCard, setActiveCatCard, showCat, scrollToMenu,
       booted, setBooted,
       productOpen, pm, openProduct, closeProduct, pmQty, togglePmAddon, pmAddToCart, pmRecalc,
+      spinReward: activeSpinReward, setActiveSpinReward, spinnerOfferEnabled,
     }}>
       {children}
     </AppContext.Provider>

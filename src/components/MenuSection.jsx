@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useSiteSettings } from '../context/SiteSettingsContext';
 import { subscribeMenuItems } from '../firebase/services';
 import { CATEGORY_TABS, MENU_DATA, IMAGE_KW, PIZZA_SIZES } from '../data/menuData';
 import { buildMenuFromFirebaseItems, getVisibleCategoryTabs } from '../utils/menuFirebase';
@@ -11,17 +12,19 @@ function MenuItemCard({ item, catId, index, kw, onAdd, onOpen }) {
   const seed = (catId.length * 131 + index * 17) % 9973;
   const priceLabel = item.priceLabel || `PKR ${(Number(item.price) || 0).toLocaleString()}`;
   const imgSrc = getMenuImageSrc(item, kw, seed);
+  const badge = item.badge || (item.featured ? 'Popular' : null);
 
   return (
     <div
-      className={`mi-card fu${delay}`}
+      className={`mi-card mi-card-v fu${delay}`}
       style={{ cursor: 'pointer' }}
       onClick={(e) => {
         if (e.target.closest('.mi-add')) return;
         onOpen(item.name, item.price, item.emoji, kw, seed, catId, item.imageUrl);
       }}
     >
-      <div className="mi-icon">
+      <div className="mi-img-wrap">
+        {badge && <span className="mi-badge">{badge}</span>}
         <img
           className="mi-photo"
           loading="lazy"
@@ -31,10 +34,9 @@ function MenuItemCard({ item, catId, index, kw, onAdd, onOpen }) {
           onError={(e) => {
             if (item.imageUrl) {
               e.target.style.display = 'none';
-              e.target.parentElement.textContent = item.emoji;
               return;
             }
-            e.target.src = `https://loremflickr.com/200/200/${encodeURIComponent(kw)}?lock=${seed}`;
+            e.target.src = `https://loremflickr.com/400/220/${encodeURIComponent(kw)}?lock=${seed}`;
           }}
         />
       </div>
@@ -43,7 +45,7 @@ function MenuItemCard({ item, catId, index, kw, onAdd, onOpen }) {
         {item.sub && <div className="mi-sub">{item.sub}</div>}
         <div className="mi-foot">
           <span className="mi-price">{priceLabel}</span>
-          <button type="button" className="mi-add rp" onClick={(e) => { e.stopPropagation(); onAdd(item.name, item.price, item.emoji); }}>+</button>
+          <button type="button" className="mi-add rp" onClick={(e) => { e.stopPropagation(); onAdd(item.name, item.price, item.emoji, catId); }}>+</button>
         </div>
       </div>
     </div>
@@ -91,7 +93,7 @@ function PizzaCard({ name, index, onAdd, onOpen }) {
           onClick={(e) => {
             e.stopPropagation();
             const sizeLabel = PIZZA_SIZES[selectedSize].label;
-            onAdd(`${name} (${sizeLabel})`, price, '🍕');
+            onAdd(`${name} (${sizeLabel})`, price, '🍕', 'pizza');
           }}
         >
           +
@@ -103,6 +105,7 @@ function PizzaCard({ name, index, onAdd, onOpen }) {
 
 export default function MenuSection() {
   const { activeMenuCat, showCat, openCart, addItem, openProduct } = useApp();
+  const { isCategoryVisible } = useSiteSettings();
   const [firebaseItems, setFirebaseItems] = useState([]);
 
   useEffect(() => subscribeMenuItems(setFirebaseItems), []);
@@ -113,9 +116,10 @@ export default function MenuSection() {
   }, [firebaseItems]);
 
   const categoryTabs = useMemo(() => {
-    const visible = getVisibleCategoryTabs(menuData);
-    return visible.length > 0 ? visible : CATEGORY_TABS;
-  }, [menuData]);
+    const fromMenu = getVisibleCategoryTabs(menuData);
+    const base = fromMenu.length > 0 ? fromMenu : CATEGORY_TABS;
+    return base.filter((t) => isCategoryVisible(t.id));
+  }, [menuData, isCategoryVisible]);
 
   const usingFirebase = firebaseItems.some((i) => i.available !== false);
 
@@ -125,17 +129,14 @@ export default function MenuSection() {
     return () => cancelAnimationFrame(id);
   }, [menuData, activeMenuCat, firebaseItems.length]);
 
-  // Keep active tab valid when menu source changes
   useEffect(() => {
-    const tabs = getVisibleCategoryTabs(menuData);
-    const list = tabs.length > 0 ? tabs : CATEGORY_TABS;
-    if (!list.some((t) => t.id === activeMenuCat)) {
-      showCat(list[0].id);
+    if (categoryTabs.length > 0 && !categoryTabs.some((t) => t.id === activeMenuCat)) {
+      showCat(categoryTabs[0].id);
     }
-  }, [menuData, activeMenuCat, showCat]);
+  }, [categoryTabs, activeMenuCat, showCat]);
 
   return (
-    <section id="menu-section">
+    <section id="menu-section" className="section-divider-top">
       <div className="wrap">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }} className="fu">
           <div>
@@ -160,7 +161,9 @@ export default function MenuSection() {
           ))}
         </div>
 
-        {Object.entries(menuData).map(([catId, data]) => {
+        {Object.entries(menuData)
+          .filter(([catId]) => isCategoryVisible(catId))
+          .map(([catId, data]) => {
           if (data.isDeals) {
             return (
               <div key={catId} className={`menu-category${activeMenuCat === catId ? ' show' : ''}`} id={`cat-${catId}`}>
@@ -182,7 +185,7 @@ export default function MenuSection() {
                       <div className="deal-items-list">{deal.list}</div>
                       <div className="deal-foot">
                         <span className="deal-price" style={deal.featured ? { fontSize: '36px' } : undefined}>PKR {deal.price.toLocaleString()}</span>
-                        <button type="button" className="deal-add rp" onClick={() => addItem(deal.name, deal.price, deal.featured ? '👨‍👩‍👧' : '💰')}>Add Deal</button>
+                        <button type="button" className="deal-add rp" onClick={() => addItem(deal.name, deal.price, deal.featured ? '👨‍👩‍👧' : '💰', 'deals')}>Add Deal</button>
                       </div>
                     </div>
                   ))}

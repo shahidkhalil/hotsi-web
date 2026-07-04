@@ -4,7 +4,6 @@ import { subscribeRevenue, subscribeOrders, rebuildAllRevenue } from '../firebas
 import { isFirebaseConfigured } from '../firebase/config';
 import { useAnimatedCounter } from './hooks/useAnimatedCounter';
 import {
-  buildRevenueSnapshots,
   filterSnapshotsByPeriod,
   formatPeriodLabel,
   formatPKR,
@@ -12,6 +11,7 @@ import {
   getTodayKey,
   getThisWeekKey,
   getThisMonthKey,
+  mergeRevenueWithOrders,
   shiftPeriodKey,
 } from '../utils/revenueUtils';
 
@@ -88,7 +88,7 @@ export default function AdminRevenue() {
   const [selectedKey, setSelectedKey] = useState(getTodayKey());
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
-  const rebuilt = useRef(false);
+  const initialPeriodSet = useRef(false);
 
   useEffect(() => {
     const unsubs = [
@@ -99,30 +99,22 @@ export default function AdminRevenue() {
   }, []);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || rebuilt.current) return;
-    rebuilt.current = true;
-    rebuildAllRevenue()
-      .then(({ periods, updated }) => setSyncMsg(`Synced ${periods} active periods (${updated} records updated)`))
-      .catch((err) => setSyncMsg(err.message || 'Initial sync failed'));
-  }, []);
+    if (initialPeriodSet.current || orders.length === 0) return;
+    const snaps = mergeRevenueWithOrders([], orders);
+    const daily = filterSnapshotsByPeriod(snaps, period);
+    const todaySnap = daily.find((s) => s.periodKey === selectedKey);
+    if ((todaySnap?.orderCount || 0) === 0 && daily.length > 0) {
+      setSelectedKey(daily[0].periodKey);
+    }
+    initialPeriodSet.current = true;
+  }, [orders, period, selectedKey]);
 
-  const computedSnapshots = useMemo(() => {
-    const map = buildRevenueSnapshots(orders);
-    return [...map.values()];
-  }, [orders]);
+  const computedSnapshots = useMemo(
+    () => mergeRevenueWithOrders(revenue, orders),
+    [revenue, orders],
+  );
 
-  const mergedSnapshots = useMemo(() => {
-    const byId = new Map();
-    revenue.forEach((s) => {
-      byId.set(`${s.period}_${s.periodKey}`, s);
-    });
-    computedSnapshots.forEach((s) => {
-      if (!byId.has(`${s.period}_${s.periodKey}`)) {
-        byId.set(`${s.period}_${s.periodKey}`, s);
-      }
-    });
-    return [...byId.values()];
-  }, [revenue, computedSnapshots]);
+  const mergedSnapshots = computedSnapshots;
 
   const currentPeriod = PERIODS.find((p) => p.id === period);
   const chartKeys = getRecentPeriodKeys(period, currentPeriod?.chartCount || 7);
@@ -173,7 +165,7 @@ export default function AdminRevenue() {
     <div className="admin-page admin-revenue-page">
       <div className="admin-revenue-header">
         <div>
-          <p className="admin-page-sub">Track sales by day, week, and month — stored in Firestore</p>
+          <p className="admin-page-sub">Live revenue from orders — updates instantly as orders come in</p>
           {syncMsg && <p className="admin-revenue-sync-msg">{syncMsg}</p>}
         </div>
         <button type="button" className="admin-btn-sm success" onClick={handleSync} disabled={syncing}>

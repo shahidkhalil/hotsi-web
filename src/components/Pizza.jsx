@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSiteSettings } from '../context/SiteSettingsContext';
 
 const INGREDIENTS = [
   { emoji: '🧀', name: 'Buffalo Mozzarella', desc: 'Imported from Naples' },
@@ -8,7 +9,10 @@ const INGREDIENTS = [
 ];
 
 export default function Pizza() {
+  const { isCategoryVisible } = useSiteSettings();
   const [activeIng, setActiveIng] = useState(0);
+
+  if (!isCategoryVisible('pizza')) return null;
 
   const spinPiz = (d) => {
     d.style.animationDuration = '1.5s';

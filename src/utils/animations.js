@@ -10,8 +10,12 @@ export function initParticles() {
   const c = document.getElementById('hero-particles');
   if (!c) return;
   const ctx = c.getContext('2d');
-  c.width = innerWidth;
-  c.height = innerHeight;
+  const resize = () => {
+    const box = c.parentElement?.getBoundingClientRect();
+    c.width = box?.width || innerWidth;
+    c.height = box?.height || innerHeight;
+  };
+  resize();
   const pts = Array.from({ length: 80 }, () => ({
     x: Math.random() * c.width,
     y: Math.random() * c.height,
@@ -36,7 +40,7 @@ export function initParticles() {
     requestAnimationFrame(draw);
   }
   draw();
-  window.addEventListener('resize', () => { c.width = innerWidth; c.height = innerHeight; });
+  window.addEventListener('resize', resize);
 }
 
 export function initBurger() {
@@ -44,6 +48,7 @@ export function initBurger() {
   if (!canvas) return;
   const W = canvas.offsetWidth;
   const H = canvas.offsetHeight;
+  if (W < 2 || H < 2) return;
   const rend = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   rend.setPixelRatio(Math.min(devicePixelRatio, 2));
   rend.setSize(W, H);
@@ -123,19 +128,47 @@ export function initBurger() {
   });
 }
 
+export function clearHeroInlineStyles() {
+  const sel = '.hero-label,.hero-title .line span,.hero-tagline,.hero-menu-strip,.hero-btns,.hero-stat-card,.hero-mobile-food,.hero-float,.steam';
+  document.querySelectorAll(sel).forEach((el) => {
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('transform');
+    el.style.removeProperty('visibility');
+    el.style.removeProperty('translate');
+  });
+}
+
 export function initGSAP() {
   gsap.registerPlugin(ScrollTrigger);
-  gsap.from('.hero-title .line span', { yPercent: 110, duration: 1, stagger: 0.15, ease: 'power4.out', delay: 0.2 });
-  gsap.from('.hero-label', { opacity: 0, y: 20, duration: 0.8, delay: 0.1 });
-  gsap.from('.hero-sub', { opacity: 0, y: 30, duration: 0.9, delay: 0.6 });
-  gsap.from('.hero-btns', { opacity: 0, y: 30, duration: 0.9, delay: 0.8 });
-  gsap.from('.hero-stats > div', { opacity: 0, y: 20, duration: 0.7, stagger: 0.12, delay: 1 });
-  gsap.from('.hero-float,.steam', { opacity: 0, scale: 0.5, duration: 1, stagger: 0.2, delay: 0.5, ease: 'back.out(2)' });
+  // Hero uses CSS animations only — GSAP opacity/y transforms were hiding content
 }
 
 export function initFades() {
-  const obs = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('vis'); }), { threshold: 0.1 });
-  document.querySelectorAll('.fu').forEach((el) => obs.observe(el));
+  const reveal = (el) => el.classList.add('vis');
+
+  const isInViewport = (el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+  };
+
+  document.querySelectorAll('.fu').forEach((el) => {
+    if (isInViewport(el)) reveal(el);
+  });
+
+  const itemObs = new IntersectionObserver(
+    (entries) => entries.forEach((e) => { if (e.isIntersecting) reveal(e.target); }),
+    { rootMargin: '0px 0px -5% 0px', threshold: 0.05 },
+  );
+  document.querySelectorAll('.fu').forEach((el) => itemObs.observe(el));
+
+  const sectionObs = new IntersectionObserver(
+    (entries) => entries.forEach((e) => {
+      if (e.isIntersecting) revealFadeElements(e.target);
+    }),
+    { rootMargin: '120px 0px 120px 0px', threshold: 0 },
+  );
+
+  document.querySelectorAll('section[id]').forEach((sec) => sectionObs.observe(sec));
 }
 
 export function revealFadeElements(root) {
@@ -223,13 +256,16 @@ export function initRipple() {
   });
 }
 
+let bootRan = false;
+
 export function boot() {
-  initParticles();
-  initBurger();
-  initGSAP();
-  initFades();
-  initSwiper();
-  initCountdowns();
-  initCatScroll();
-  initRipple();
+  if (bootRan) return;
+  bootRan = true;
+  clearHeroInlineStyles();
+  const steps = [initParticles, initBurger, initGSAP, initFades, initSwiper, initCountdowns, initCatScroll, initRipple];
+  steps.forEach((fn) => {
+    try { fn(); } catch (err) { console.warn('HOTSI boot step failed:', fn.name, err); }
+  });
+  clearHeroInlineStyles();
+  requestAnimationFrame(clearHeroInlineStyles);
 }

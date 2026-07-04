@@ -2,11 +2,18 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { PM_ADDONS, PM_DESC } from '../context/AppContext';
 import { getProductImageSrc } from '../utils/cloudinary';
+import {
+  canPlaceOrder,
+  getSpinCartHint,
+  buildCartReceipt,
+  shouldShowSpinNote,
+} from '../utils/spinReward';
 
 export default function Cart() {
   const {
-    cart, cartCount, cartTotal, cartOpen, closeCart,
+    cart, cartCount, cartOpen, closeCart,
     changeQty, removeItem, placedOrder, placeCartOrder, sendPlacedOrderWhatsApp,
+    spinReward,
   } = useApp();
 
   const [form, setForm] = useState({ name: '', contact: '', address: '' });
@@ -27,6 +34,10 @@ export default function Cart() {
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
+    if (!canPlaceOrder(cart)) {
+      setErrors({ checkout: 'Add at least one paid item. Free spin rewards require a purchase first.' });
+      return;
+    }
     if (!validate()) return;
     setSaving(true);
     try {
@@ -37,6 +48,10 @@ export default function Cart() {
       setSaving(false);
     }
   };
+
+  const spinHint = getSpinCartHint(spinReward, cart);
+  const orderAllowed = canPlaceOrder(cart);
+  const receipt = buildCartReceipt(cart);
 
   return (
     <>
@@ -55,22 +70,33 @@ export default function Cart() {
             </div>
           ) : (
             cart.map((item, idx) => (
-              <div className="ci" key={`${item.name}-${idx}`}>
-                <div className="ci-emoji">{item.emoji}</div>
-                <div className="ci-info">
-                  <div className="ci-name">{item.name}</div>
-                  <div className="ci-price">PKR {(item.price * item.qty).toLocaleString()}</div>
-                  {!placedOrder && (
-                    <div className="ci-qty">
-                      <button type="button" className="qty-btn" onClick={() => changeQty(idx, -1)}>&#x2212;</button>
-                      <span className="qty-num">{item.qty}</span>
-                      <button type="button" className="qty-btn" onClick={() => changeQty(idx, 1)}>+</button>
-                      <button type="button" className="ci-del" onClick={() => removeItem(idx)} title="Remove">&#x1F5D1;</button>
+                <div className={`ci${item.isSpinFree ? ' ci-free' : ''}`} key={`${item.name}-${item.price}-${idx}`}>
+                  <div className="ci-emoji">{item.emoji}</div>
+                  <div className="ci-info">
+                    <div className="ci-name">{item.name}</div>
+                    {shouldShowSpinNote(item, spinReward) && (
+                      <div className="ci-spin-note">{item.spinNote}</div>
+                    )}
+                    <div className="ci-price">
+                      {item.originalPrice != null && item.originalPrice !== item.price && (
+                        <span className="ci-price-was">PKR {(item.originalPrice * item.qty).toLocaleString()}</span>
+                      )}
+                      <span className="ci-price-now">PKR {(item.price * item.qty).toLocaleString()}</span>
                     </div>
-                  )}
+                    {!placedOrder && !item.isSpinFree && (
+                      <div className="ci-qty">
+                        <button type="button" className="qty-btn" onClick={() => changeQty(idx, -1)}>&#x2212;</button>
+                        <span className="qty-num">{item.qty}</span>
+                        <button type="button" className="qty-btn" onClick={() => changeQty(idx, 1)}>+</button>
+                        <button type="button" className="ci-del" onClick={() => removeItem(idx)} title="Remove">&#x1F5D1;</button>
+                      </div>
+                    )}
+                    {!placedOrder && item.isSpinFree && (
+                      <div className="ci-free-tag">Included free · qty {item.qty}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))
           )}
         </div>
 
@@ -78,8 +104,24 @@ export default function Cart() {
           <div className="cart-foot" id="cart-foot">
             <div className="cart-total-row">
               <span className="cart-total-label">Total</span>
-              <span className="cart-total-num" id="cart-total">PKR {cartTotal.toLocaleString()}</span>
+              <span className="cart-total-num" id="cart-total">PKR {receipt.total.toLocaleString()}</span>
             </div>
+
+            {receipt.savings > 0 && (
+              <p className="cart-savings-note">You save PKR {receipt.savings.toLocaleString()} with your spin reward</p>
+            )}
+
+            {spinHint && <p className="cart-spin-hint">{spinHint}</p>}
+
+            {errors.checkout && (
+              <p className="cart-field-error" style={{ marginBottom: 12 }}>{errors.checkout}</p>
+            )}
+
+            {!orderAllowed && cart.length > 0 && (
+              <p className="cart-spin-hint cart-spin-warn">
+                ⚠️ Add a paid item first — free spin rewards cannot be ordered alone.
+              </p>
+            )}
 
             {placedOrder ? (
               <div className="cart-success">
@@ -130,8 +172,8 @@ export default function Cart() {
                   />
                   {errors.address && <span className="cart-field-error">{errors.address}</span>}
                 </div>
-                <button type="submit" className="cart-place-btn" disabled={saving}>
-                  {saving ? 'Saving order…' : 'Place Order'}
+                <button type="submit" className="cart-place-btn" disabled={saving || !orderAllowed}>
+                  {saving ? 'Saving order…' : orderAllowed ? 'Place Order' : 'Add a paid item first'}
                 </button>
               </form>
             )}

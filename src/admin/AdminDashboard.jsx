@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { subscribeOrders, subscribeMenuItems, subscribeRevenue } from '../firebase/services';
+import { subscribeOrders, subscribeMenuItems } from '../firebase/services';
 import { isFirebaseConfigured } from '../firebase/config';
 import { countWebsiteMenuItems } from '../data/menuData';
-import { getTodayKey } from '../utils/revenueUtils';
+import { getTodayKey, getTodayRevenueFromOrders, formatDateKey, toDate } from '../utils/revenueUtils';
 import StatCard from './components/StatCard';
 import DashboardPanel, { OrderFeedItem } from './components/DashboardPanel';
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
-  const [revenue, setRevenue] = useState([]);
   const [sync, setSync] = useState({ live: isFirebaseConfigured, error: null });
   const prevTotal = useRef(0);
 
@@ -20,7 +19,6 @@ export default function AdminDashboard() {
         setSync((s) => ({ ...s, ...meta }));
       }),
       subscribeMenuItems((items) => setMenuItems(items)),
-      subscribeRevenue(setRevenue),
     ];
     return () => unsubs.forEach((u) => u());
   }, []);
@@ -31,7 +29,11 @@ export default function AdminDashboard() {
   const websiteMenuCount = countWebsiteMenuItems();
   const totalMenuCount = websiteMenuCount + menuItems.length;
   const todayKey = getTodayKey();
-  const todayRevenue = Math.max(0, revenue.find((r) => r.period === 'daily' && r.periodKey === todayKey)?.total || 0);
+  const todayRevenue = getTodayRevenueFromOrders(orders);
+  const todayOrderCount = orders.filter((o) => {
+    const d = toDate(o.createdAt);
+    return d && formatDateKey(d) === todayKey;
+  }).length;
 
   const stats = [
     { icon: '💰', value: todayRevenue, label: "Today's Revenue", color: '#a855f7', to: '/admin/revenue', currency: true },
@@ -56,7 +58,12 @@ export default function AdminDashboard() {
         ) : (
           <span className="admin-offline">Offline — check .env file</span>
         )}
-        {placed > 0 && <span className="admin-stat-pill">📦 {placed} placed today</span>}
+        {todayOrderCount > 0 && (
+          <span className="admin-stat-pill">📦 {todayOrderCount} order{todayOrderCount !== 1 ? 's' : ''} today</span>
+        )}
+        {placed > 0 && todayOrderCount === 0 && (
+          <span className="admin-stat-pill">📦 {placed} placed (all time)</span>
+        )}
       </div>
 
       <div className="admin-stats">

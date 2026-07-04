@@ -23,6 +23,7 @@ export default function CartToast({ toast, onDone }) {
       <div className="cart-toast-body">
         <strong>Added to cart!</strong>
         <span>{toast.name}</span>
+        {toast.spinNote && <span className="cart-toast-spin">{toast.spinNote}</span>}
       </div>
       <span className="cart-toast-check">✓</span>
     </div>

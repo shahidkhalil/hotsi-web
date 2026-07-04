@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { AppProvider, useApp } from '../context/AppContext';
+import { SiteSettingsProvider } from '../context/SiteSettingsContext';
 import { useCustomCursor, useNavScroll, useEscapeKey } from '../hooks/useEffects';
 import Loader from '../components/Loader';
 import Cart, { ProductModal } from '../components/Cart';
@@ -8,7 +9,7 @@ import Nav from '../components/Nav';
 import Hero from '../components/Hero';
 import Categories from '../components/Categories';
 import MenuSection from '../components/MenuSection';
-import Pizza from '../components/Pizza';
+import SpinnerOffer from '../components/SpinnerOffer';
 import Deals from '../components/Deals';
 import Why from '../components/Why';
 import Story from '../components/Story';
@@ -16,6 +17,8 @@ import Gallery from '../components/Gallery';
 import Reviews from '../components/Reviews';
 import Delivery from '../components/Delivery';
 import Footer from '../components/Footer';
+import StickyMobileBar from '../components/StickyMobileBar';
+import WhatsAppFloat from '../components/WhatsAppFloat';
 
 function MainContent() {
   const { setBooted, closeProduct, cartOpen, closeCart, cartToast, clearCartToast } = useApp();
@@ -40,7 +43,7 @@ function MainContent() {
       <Hero />
       <Categories />
       <MenuSection />
-      <Pizza />
+      <SpinnerOffer />
       <Deals />
       <Why />
       <Story />
@@ -48,14 +51,18 @@ function MainContent() {
       <Reviews />
       <Delivery />
       <Footer />
+      <StickyMobileBar />
+      <WhatsAppFloat />
     </>
   );
 }
 
 export default function MainSite() {
   return (
-    <AppProvider>
-      <MainContent />
-    </AppProvider>
+    <SiteSettingsProvider>
+      <AppProvider>
+        <MainContent />
+      </AppProvider>
+    </SiteSettingsProvider>
   );
 }

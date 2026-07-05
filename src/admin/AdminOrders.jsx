@@ -9,6 +9,7 @@ import {
 } from '../firebase/services';
 import { useAuth } from '../context/AuthContext';
 import OrderReceipt from './components/OrderReceipt';
+import { openCustomerOrderWhatsApp, formatWhatsAppPhone } from '../utils/orderUtils';
 import '../staff/staff.css';
 
 function formatDate(ts) {
@@ -58,6 +59,8 @@ function StatusStepper({ status, onChange, disabled }) {
 function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, onDelete, onForwardToStaff, forwardingId }) {
   const items = getItemsList(order);
   const initial = (order.customerName?.[0] || 'C').toUpperCase();
+  const customerPhone = formatWhatsAppPhone(order.contact);
+  const canWhatsApp = Boolean(customerPhone) && order.status !== 'cancelled';
 
   return (
     <article className={`admin-order-card${selected ? ' selected' : ''}`}>
@@ -119,6 +122,18 @@ function OrderCard({ order, mergeMode, selected, onSelect, onStatus, onReceipt, 
           </div>
         ) : (
           <StatusStepper status={order.status} onChange={(s) => onStatus(order.id, s)} />
+        )}
+
+        {canWhatsApp && (
+          <button
+            type="button"
+            className="admin-order-whatsapp-btn"
+            onClick={() => openCustomerOrderWhatsApp(order)}
+            title={`Send ${order.status || 'order'} update to ${order.customerName || 'customer'} on WhatsApp`}
+          >
+            <span className="admin-order-wa-icon" aria-hidden>📲</span>
+            WhatsApp Update
+          </button>
         )}
 
         <div className="admin-order-card-actions">

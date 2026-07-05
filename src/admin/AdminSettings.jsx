@@ -123,20 +123,25 @@ export default function AdminSettings() {
           {ALL_CATEGORY_IDS.map((id) => {
             const meta = CATEGORY_META[id];
             const hidden = (form.hiddenCategories || []).includes(id);
+            const visible = !hidden;
             return (
-              <button
+              <div
                 key={id}
-                type="button"
-                className={`admin-category-toggle${hidden ? ' hidden-cat' : ' visible-cat'}`}
-                onClick={() => toggleCategory(id)}
-                disabled={savingCategory === id}
+                className={`admin-category-card${visible ? ' visible-cat' : ' hidden-cat'}`}
               >
                 <span className="admin-category-toggle-emoji">{meta.emoji}</span>
                 <span className="admin-category-toggle-label">{meta.label}</span>
-                <span className={`admin-badge ${hidden ? 'admin-badge-cancelled' : 'admin-badge-confirmed'}`}>
-                  {hidden ? 'Hidden' : 'Visible'}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  className={`admin-toggle${visible ? ' on' : ''}`}
+                  onClick={() => toggleCategory(id)}
+                  disabled={savingCategory === id}
+                  aria-label={`${visible ? 'Hide' : 'Show'} ${meta.label} on website`}
+                  title={visible ? 'Visible on website' : 'Hidden from website'}
+                >
+                  <span className="admin-toggle-knob" />
+                </button>
+              </div>
             );
           })}
         </div>

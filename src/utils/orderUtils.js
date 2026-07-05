@@ -13,6 +13,103 @@ export function normalizeContact(contact) {
   return (contact || '').replace(/\D/g, '');
 }
 
+/** Pakistan-friendly WhatsApp number for wa.me links */
+export function formatWhatsAppPhone(contact) {
+  let digits = normalizeContact(contact);
+  if (!digits) return '';
+  if (digits.startsWith('0')) digits = `92${digits.slice(1)}`;
+  else if (digits.length === 10 && digits.startsWith('3')) digits = `92${digits}`;
+  return digits;
+}
+
+const ORDER_STATUS_WHATSAPP = {
+  pending: {
+    badge: '⏳ *ORDER RECEIVED*',
+    headline: 'We\'ve received your order and it\'s in our queue! 🎉',
+    body: 'Our team will confirm it shortly. Sit tight — something delicious is on the way! 😊',
+  },
+  confirmed: {
+    badge: '✅ *ORDER CONFIRMED*',
+    headline: 'Your order has been confirmed! 🙌',
+    body: 'Everything looks perfect. We\'re getting started on your order right away! ✨',
+  },
+  with_staff: {
+    badge: '👨‍🍳 *IN THE KITCHEN*',
+    headline: 'Great news — your order is now being prepared fresh! 🔥🍳',
+    body: 'Our chefs are cooking your meal with care. It won\'t be long now! ⏱️',
+  },
+  done: {
+    badge: '🍽️ *ALMOST READY*',
+    headline: 'Your order is ready and being packed! 📦✨',
+    body: 'We\'re putting the finishing touches on your order. Delivery is coming soon! 🛵💨',
+  },
+  placed: {
+    badge: '🚀 *ON THE WAY*',
+    headline: 'Your HOTSI order is on its way to you! 🛵🔥',
+    body: 'Get ready — hot, fresh food is heading to your door. Enjoy every bite! 😋',
+  },
+  default: {
+    badge: '🔥 *ORDER UPDATE*',
+    headline: 'Your order is being prepared fresh in our kitchen! 🍳✨',
+    body: 'Our team is working on it right now. You\'ll receive your order hot and fresh very soon! 🤍',
+  },
+};
+
+function getOrderItemsBlock(order) {
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    return order.items
+      .map((i) => `   ${i.emoji || '🍔'} *${i.name}*  ×${i.qty}  —  PKR ${(i.price * i.qty).toLocaleString()}`)
+      .join('\n');
+  }
+  return `   🍽️ ${order.itemsText || order.items || 'Your order items'}`;
+}
+
+export function buildCustomerOrderStatusMessage(order) {
+  const name = order.customerName || 'there';
+  const orderId = order.orderId || '—';
+  const address = order.address || order.notes || 'As provided';
+  const total = Number(order.total) || 0;
+  const status = order.status || 'default';
+  const copy = ORDER_STATUS_WHATSAPP[status] || ORDER_STATUS_WHATSAPP.default;
+  const itemsBlock = getOrderItemsBlock(order);
+
+  return (
+    `✨ *HOTSI* ✨\n`
+    + `━━━━━━━━━━━━━━━━━━━━\n\n`
+    + `Hey *${name}*! 👋😊\n\n`
+    + `${copy.badge}\n`
+    + `${copy.headline}\n\n`
+    + `${copy.body}\n\n`
+    + `━━━━━━━━━━━━━━━━━━━━\n`
+    + `🧾 *Order ID:* \`${orderId}\`\n\n`
+    + `🛒 *Your Order:*\n`
+    + `${itemsBlock}\n\n`
+    + `📍 *Delivery Address:*\n   ${address}\n\n`
+    + `💵 *Total Amount:*\n   *PKR ${total.toLocaleString()}* 💰\n\n`
+    + `━━━━━━━━━━━━━━━━━━━━\n\n`
+    + `🙏 Thank you for choosing *HOTSI*!\n`
+    + `We can't wait for you to enjoy your meal. ❤️🔥\n\n`
+    + `📞 Questions? Just reply to this message!\n`
+    + `🌐 *More Than Fast Food — It's The HOTSI Experience* 🍔🍕🌯`
+  );
+}
+
+/** @deprecated use buildCustomerOrderStatusMessage */
+export function buildCustomerPreparingMessage(order) {
+  return buildCustomerOrderStatusMessage(order);
+}
+
+/** Opens WhatsApp to the customer with order details and preparing message */
+export function openCustomerOrderWhatsApp(order) {
+  const phone = formatWhatsAppPhone(order.contact);
+  if (!phone) {
+    alert('No valid customer phone number on this order.');
+    return;
+  }
+  const msg = buildCustomerOrderStatusMessage(order);
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
 export function generateOrderId() {
   const part = Date.now().toString(36).toUpperCase().slice(-5);
   const rand = Math.random().toString(36).toUpperCase().slice(2, 5);

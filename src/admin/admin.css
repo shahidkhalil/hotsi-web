@@ -1396,6 +1396,7 @@
 .admin-toggle.on { background: var(--primary); border-color: var(--primary); }
 .admin-toggle-knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: #fff; border-radius: 50%; transition: transform .3s cubic-bezier(.34,1.56,.64,1); display: block; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 .admin-toggle.on .admin-toggle-knob { transform: translateX(24px); }
+.admin-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
 .admin-toggle-status { font-size: 14px; color: var(--muted); font-weight: 500; }
 
 .admin-settings-block { padding: 20px 24px; }
@@ -1407,7 +1408,7 @@
   gap: 12px;
   padding: 0 24px 24px;
 }
-.admin-category-toggle {
+.admin-category-card {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1415,15 +1416,13 @@
   border-radius: 14px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
-  cursor: pointer;
-  text-align: left;
   transition: all 0.2s;
 }
-.admin-category-toggle:hover { border-color: rgba(255, 107, 53, 0.35); }
-.admin-category-toggle.visible-cat { border-color: rgba(34, 197, 94, 0.25); }
-.admin-category-toggle.hidden-cat { opacity: 0.75; border-color: rgba(239, 68, 68, 0.25); }
-.admin-category-toggle-emoji { font-size: 22px; }
-.admin-category-toggle-label { flex: 1; font-weight: 600; font-size: 14px; }
+.admin-category-card.visible-cat { border-color: rgba(34, 197, 94, 0.25); }
+.admin-category-card.hidden-cat { opacity: 0.75; border-color: rgba(239, 68, 68, 0.25); }
+.admin-category-toggle-emoji { font-size: 22px; flex-shrink: 0; }
+.admin-category-toggle-label { flex: 1; font-weight: 600; font-size: 14px; min-width: 0; }
+.admin-category-card .admin-toggle { margin-left: auto; }
 
 .admin-live {
   display: inline-flex;
@@ -1743,6 +1742,30 @@
   color: var(--success);
 }
 .admin-status-step:disabled { opacity: 0.4; cursor: not-allowed; }
+.admin-order-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  background: rgba(37, 211, 102, 0.12);
+  color: #25d366;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.admin-order-whatsapp-btn:hover {
+  background: #25d366;
+  border-color: #25d366;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.3);
+}
+.admin-order-wa-icon { font-size: 14px; line-height: 1; }
 .admin-order-card-actions {
   display: flex;
   gap: 8px;
